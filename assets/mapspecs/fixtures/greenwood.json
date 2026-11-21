@@ -1,0 +1,1 @@
+{"name":"Greenwood","description":"Test fixture: nine tribes in a big wood, no ice.","size":150,"igloos":9,"layout":"scattered","hills":0.3,"ice":0.0,"trees":0.9,"spires":0.05,"seed":206,"features":[{"kind":"forest","x":0.5,"y":0.5,"size":0.5},{"kind":"water","x":0.5,"y":0.1,"size":0.2}],"workers":7,"snowballers":9}

@@ -1,0 +1,6 @@
+# Smoke-tests the Windows build under Wine with a virtual display:
+#   docker build -t snowballz-wine -f tools/windows/Dockerfile.wine tools/windows
+FROM debian:trixie-slim
+RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
+        wine wine64 xvfb xauth libgl1-mesa-dri libgl1 libx11-6 libxext6 libxrender1 libxrandr2 libxi6 libxcursor1 libxinerama1 libxcomposite1 libxfixes3 libxxf86vm1 libfreetype6 && rm -rf /var/lib/apt/lists/*
+ENV WINEDEBUG=-all WINEPREFIX=/tmp/wine

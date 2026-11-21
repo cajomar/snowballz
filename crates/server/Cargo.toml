@@ -1,0 +1,24 @@
+[package]
+name = "server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "snowballz-server"
+path = "src/main.rs"
+
+[dependencies]
+sim = { path = "../sim" }
+# The language model that advises the computer players, run inside the
+# server. Off by default: it needs cmake, a C++ compiler and clang to build
+# (llama.cpp), which most people hacking on the game don't want to wait for.
+# `--features llm` is the CPU; add `vulkan` (AMD, NVIDIA, Intel) or `metal`
+# (Mac) to use the GPU. Without it the server can still use Ollama.
+llama-cpp-2 = { version = "0.1.160", optional = true, default-features = false, features = ["common", "openmp"] }
+ureq = { version = "3", optional = true, default-features = false, features = ["rustls"] }
+
+[features]
+llm = ["dep:llama-cpp-2", "dep:ureq"]
+vulkan = ["llm", "llama-cpp-2/vulkan"]
+metal = ["llm", "llama-cpp-2/metal"]

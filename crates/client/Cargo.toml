@@ -1,0 +1,37 @@
+[package]
+name = "client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "snowballz"
+path = "src/main.rs"
+
+[dependencies]
+sim = { path = "../sim" }
+# The window and the GPU: winit opens it (a canvas in the browser), wgpu
+# draws with Vulkan/Metal/DX12 on desktops and WebGPU or WebGL2 in browsers.
+winit = "0.30"
+wgpu = "30"
+png = "0.17"
+lewton = "0.10.2"
+
+# Embedded and LAN hosting need threads and sockets; the browser build joins
+# a server over a WebSocket instead.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+server = { path = "../server" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "30", features = ["webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "Performance"] }
+
+# Pass-throughs for the language model that advises computer players in games
+# this client hosts (see crates/server/Cargo.toml): `--features vulkan`.
+[features]
+llm = ["server/llm"]
+vulkan = ["server/vulkan"]
+metal = ["server/metal"]

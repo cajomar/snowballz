@@ -1,0 +1,29 @@
+SNOWBALLZ
+=========
+
+Start the game with snowballz.exe (Windows) or ./snowballz (Linux).
+
+Windows may say "Windows protected your PC" because the game isn't
+signed: click "More info", then "Run anyway". If Windows Firewall asks,
+allow it (needed only if YOU host a game).
+
+Joining a friend's game
+-----------------------
+Main menu -> Join Game. Type the address your friend gives you, e.g.
+    81.2.3.4:7777        (over the internet)
+    100.101.102.103:7777 (if you both use Tailscale)
+and press Connect. Games on your own Wi-Fi show up in the list by
+themselves.
+
+Hosting a game
+--------------
+Main menu -> Host LAN / Internet Game. The lobby shows the addresses
+friends can use. The game asks your router to open port 7777. If it
+says to forward the port yourself, open your router's settings (or its
+app, e.g. Xfinity) and forward TCP port 7777 to your computer.
+
+Playing
+-------
+Left-drag to select penguins, right-click to send them. Right-click an
+enemy igloo with a snowballer selected to take it over. Press F1 in a
+game for all the controls, F2 to switch between 3D and the fast 2D view.

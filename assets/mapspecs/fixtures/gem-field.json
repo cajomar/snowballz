@@ -1,0 +1,1 @@
+{"name":"Gem Field","description":"Test fixture: four tribes round a field of crystal.","size":100,"igloos":4,"layout":"ring","hills":0.3,"ice":0.15,"trees":0.3,"spires":0.1,"seed":104,"features":[{"kind":"crystal","x":0.5,"y":0.5,"size":0.15},{"kind":"water","x":0.5,"y":0.9,"size":0.25}],"workers":8,"snowballers":12}

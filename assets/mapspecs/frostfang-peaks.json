@@ -1,0 +1,2 @@
+{"name":"Frostfang Peaks","description":"Four corner strongholds high in the mountains. Hold the passes; high ground throws farther.","size":128,"igloos":4,"layout":"corners","hills":0.9,"ice":0.1,"trees":0.5,"spires":0.3,"seed":55,
+ "features":[{"kind":"water","x":0.5,"y":0.05,"size":0.3},{"kind":"hill","x":0.5,"y":0.5,"size":0.5},{"kind":"ridge","x":0.5,"y":0.25,"size":0.5},{"kind":"ridge","x":0.5,"y":0.75,"size":0.5},{"kind":"spires","x":0.5,"y":0.5,"size":0.25}],"workers":8,"snowballers":10}

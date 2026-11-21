@@ -1,0 +1,6 @@
+/target
+*.log
+/dist
+.serena/
+*.blend1
+__pycache__/

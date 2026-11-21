@@ -1,0 +1,3 @@
+
+{"name":"Pinewood Hollow","description":"Six igloos in a deep pine forest ring a bare crater. Chop roads, or fight from the trees.","size":150,"igloos":6,"layout":"ring","hills":0.4,"ice":0.1,"trees":0.8,"spires":0.0,"seed":22,"features":[{"kind":"crater","x":0.5,"y":0.5,"size":0.5},{"kind":"clearing","x":0.5,"y":0.5,"size":0.35},{"kind":"forest","x":0.2,"y":0.5,"size":0.4},{"kind":"forest","x":0.8,"y":0.5,"size":0.4},{"kind":"water","x":0.5,"y":0.1,"size":0.3},{"kind":"water","x":0.9,"y":0.55,"size":0.3}],"workers":8,"snowballers":9}
+

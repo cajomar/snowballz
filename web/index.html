@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Snowballz</title>
+<style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1c3552; font-family: sans-serif; }
+    canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none;
+             user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; color: #e8f2ff; background: #1c3552; }
+    #loading h1 { font-size: 64px; margin: 0 0 6px; }
+    #loading p { margin: 0 0 22px; color: #a9c4e4; }
+    #bar { width: min(420px, 80vw); height: 10px; background: #0f2237; border-radius: 5px; overflow: hidden; }
+    #fill { width: 0; height: 100%; background: #8fd0ff; }
+    #status { margin-top: 12px; font-size: 14px; color: #a9c4e4; min-height: 1.2em; text-align: center;
+              max-width: 80vw; }
+</style>
+</head>
+<body>
+<canvas id="glcanvas" tabindex="1"></canvas>
+<div id="loading">
+    <h1>Snowballz</h1>
+    <p>a penguin snowball fight</p>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="status">Loading...</div>
+</div>
+<script src="snowballz.js"></script>
+<script>
+    snowballzLoad();
+    // On a phone, the first tap takes the whole screen (hides the address bar).
+    window.addEventListener("touchend", function once() {
+        window.removeEventListener("touchend", once);
+        const el = document.documentElement;
+        if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+    });
+</script>
+</body>
+</html>
