@@ -81,7 +81,7 @@ fn run(cfg: &LlmConfig, prompt: &str, seed: u64, tx: &Sender<MapJob>) -> MapJob 
     let body = format!(
         "{{\"model\":{},\"messages\":[{{\"role\":\"system\",\"content\":{}}},{{\"role\":\"user\",\"content\":{}}}],\
          \"temperature\":0.8,\"max_tokens\":2500,\"response_format\":{{\"type\":\"json_object\"}},\
-         \"chat_template_kwargs\":{{\"enable_thinking\":false}},\"reasoning_effort\":\"low\",\"stream\":false}}",
+         \"chat_template_kwargs\":{{\"enable_thinking\":false}},\"reasoning_effort\":\"none\",\"stream\":false}}",
         quote(&model),
         quote(SPEC_GUIDE),
         quote(prompt)
