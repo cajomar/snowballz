@@ -85,16 +85,24 @@ pub struct WorldUniforms {
     pub fog_color: [f32; 4],
     /// Map size, polar night (0..1), blizzard (0..1).
     pub map: [f32; 4],
-    /// x: albedo multiplier (ruins are drawn darker).
+    /// x: albedo multiplier (ruins are drawn darker), y: how many of
+    /// `lights` are in use.
     pub tint: [f32; 4],
+    /// Point lights (fires, windows, lanterns): position and reach.
+    pub lights: [[f32; 4]; MAX_LIGHTS],
+    /// Their colour times brightness.
+    pub light_cols: [[f32; 4]; MAX_LIGHTS],
 }
+
+/// The most point lights lighting one frame: the nearest to the camera win.
+pub const MAX_LIGHTS: usize = 24;
 
 /// Uniform slots, one per way the world is drawn in a frame.
 const SLOT_MAIN: u32 = 0;
 const SLOT_SHADOW: u32 = 1;
 const SLOT_RUIN: u32 = 2;
 const SLOTS: u32 = 3;
-const SLOT_STRIDE: u64 = 256;
+const SLOT_STRIDE: u64 = 1024;
 
 const COMMON: &str = r#"
 struct World {
@@ -106,6 +114,8 @@ struct World {
     fog_color: vec4<f32>,
     map: vec4<f32>,
     tint: vec4<f32>,
+    lights: array<vec4<f32>, 24>,
+    light_cols: array<vec4<f32>, 24>,
 }
 @group(0) @binding(0) var<uniform> u: World;
 
@@ -148,9 +158,41 @@ fn sky_light(n: vec3<f32>) -> vec3<f32> {
 }
 // The sun: warm, and brighter than white, so sunlit snow glows a little.
 const SUN_COLOR: vec3<f32> = vec3<f32>(1.0, 0.92, 0.80);
-// u.map.z: polar night (0..1) darkens and blues everything.
-fn apply_fog(col_in: vec3<f32>, pos: vec3<f32>) -> vec3<f32> {
-    let col = col_in * mix(vec3<f32>(1.0), vec3<f32>(0.5, 0.55, 0.7), u.map.z);
+// u.map.z: polar night (0..1) darkens and blues the sun and sky's light
+// (not the fires', which is added after).
+fn night_tint(col: vec3<f32>) -> vec3<f32> {
+    return col * mix(vec3<f32>(1.0), vec3<f32>(0.3, 0.36, 0.56), u.map.z);
+}
+// Light from the fires, windows and lanterns nearby: a soft pool that fades
+// to nothing at the edge of its reach, wrapped a little round the far side.
+fn local_diffuse(pos: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    var c = vec3<f32>(0.0);
+    let count = i32(u.tint.y);
+    for (var k = 0; k < count; k++) {
+        let l = u.lights[k];
+        let d = l.xyz - pos;
+        let dist = length(d);
+        let x = clamp(1.0 - (dist * dist) / (l.w * l.w), 0.0, 1.0);
+        let wrap = max((dot(n, d / max(dist, 1e-3)) + 0.3) / 1.3, 0.0);
+        c += u.light_cols[k].rgb * x * x * wrap;
+    }
+    return c;
+}
+// Their glints on shiny things (ice, water, metal).
+fn local_spec(pos: vec3<f32>, n: vec3<f32>, v: vec3<f32>, power: f32) -> vec3<f32> {
+    var c = vec3<f32>(0.0);
+    let count = i32(u.tint.y);
+    for (var k = 0; k < count; k++) {
+        let l = u.lights[k];
+        let d = l.xyz - pos;
+        let dist = length(d);
+        let x = clamp(1.0 - (dist * dist) / (l.w * l.w), 0.0, 1.0);
+        let h = normalize(d / max(dist, 1e-3) + v);
+        c += u.light_cols[k].rgb * x * pow(max(dot(n, h), 0.0), power);
+    }
+    return c;
+}
+fn apply_fog(col: vec3<f32>, pos: vec3<f32>) -> vec3<f32> {
     let d = length(u.eye.xyz - pos);
     var f = clamp((d - u.fog.x) / u.fog.y, 0.0, 1.0);
     // u.map.w: blizzard haze, even up close.
@@ -351,6 +393,9 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     let pick = step(0.97, hash(cell + floor(u.eye.xy * 0.6) * 17.0));
     let glint = pick * ss(0.18, 0.0, length(fc)) * pow(nh, 4.0) * sh;
     col += (1.0 - ice) * (1.0 - cliff) * (1.0 - trod) * glint * 2.2;
+    col = night_tint(col);
+    // Firelight: warm pools on the snow, glints off ice and water.
+    col += albedo * local_diffuse(i.pos, n) + (ice * 0.8 + water * 1.6) * local_spec(i.pos, n, V, 80.0);
     let reg = tint_at(mp);
     // Ground you have seen but cannot see now fades to an old hand-drawn
     // map: tea-stained paper, ink outlines along shores and floes, and
@@ -519,6 +564,8 @@ fn fs(i: MOut) -> @location(0) vec4<f32> {
     col += spec * sh * SUN_COLOR;
     let rim = pow(1.0 - max(dot(n, V), 0.0), 2.5);
     col += rim * mix(vec3<f32>(0.45, 0.6, 0.85) * 0.3, i.team.rgb * 1.4, min(i.misc.w, 1.0));
+    col = night_tint(col);
+    col += albedo * local_diffuse(i.pos, n) + local_spec(i.pos, n, V, select(24.0, 90.0, glossy)) * (surf.w * 0.5 + 0.1);
     // Glowing parts (fire, lamps) shine past white, so they bloom.
     col = mix(col, albedo * 2.2, emissive * 0.8);
     // Above 1.0 the highlight slot carries a white hit flash.
@@ -663,6 +710,7 @@ fn fs_water(i: TOut) -> @location(0) vec4<f32> {
     let lap = vnoise(q * 1.6 + vec2<f32>(t * 0.35, 0.0)) * 0.6 + vnoise(q * 4.1 - vec2<f32>(0.0, t * 0.5)) * 0.4;
     let foam = ss(0.8, 1.0, shore) * (0.45 + 0.55 * lap) + ss(0.3, 0.9, shore) * lap * 0.25;
     col = mix(col, vec3<f32>(0.88, 0.94, 0.98), foam * 0.85);
+    col = night_tint(col) + local_spec(i.pos, n, V, 60.0) * 1.5;
     return vec4<f32>(apply_fog(col, i.pos), 1.0);
 }
 "#;
@@ -794,6 +842,8 @@ pub struct Render3D {
     /// Weather from the last scene (see [`Scene`]).
     night: f32,
     storm: f32,
+    /// This frame's point lights (see `gather_lights`) and how many.
+    lights: ([[f32; 4]; MAX_LIGHTS], [[f32; 4]; MAX_LIGHTS], usize),
     snowfall: f32,
     flakes: Vec<Flake>,
     rng: Rng,
@@ -1065,6 +1115,7 @@ impl Render3D {
             terrain_seen: 0,
             night: 0.0,
             storm: 0.0,
+            lights: ([[0.0; 4]; MAX_LIGHTS], [[0.0; 4]; MAX_LIGHTS], 0),
             snowfall: 1.0,
             flakes: Vec::new(),
             rng: Rng::new(99),
@@ -1320,8 +1371,52 @@ impl Render3D {
                 [c[0], c[1], c[2], 1.0]
             },
             map: [w, h, if mode < 0.5 { self.night } else { 0.0 }, if mode < 0.5 { self.storm } else { 0.0 }],
-            tint: [1.0, 0.0, 0.0, 0.0],
+            tint: [1.0, if mode < 0.5 { self.lights.2 as f32 } else { 0.0 }, 0.0, 0.0],
+            lights: self.lights.0,
+            light_cols: self.lights.1,
         }
+    }
+
+    /// The fires, windows and lanterns lighting this frame, nearest the
+    /// camera first. They glow faintly by day and come into their own at
+    /// night and in storms; flames flicker.
+    fn gather_lights(&mut self, scene: &Scene) {
+        let fire = [1.0, 0.42, 0.12];
+        let window = [1.0, 0.5, 0.2];
+        let lamp = [1.0, 0.58, 0.28];
+        // (where, height, reach, colour, brightness, flickers)
+        let mut found: Vec<(Vec2, f32, f32, [f32; 3], f32, bool)> = Vec::new();
+        for ig in &scene.igloos {
+            if ig.color.is_some() {
+                // The door, a step out: the glow spills from the tunnel.
+                let out = (ig.door - ig.center).norm();
+                found.push((ig.door + out * 0.6, ig.z + 0.7, 6.5, window, 1.2, false));
+            }
+        }
+        for b in scene.buildings.iter().filter(|b| b.ghost.is_none() && b.progress >= 1.0) {
+            let (h, reach, col, bright, flick) = match b.kind {
+                BuildKind::Campfire => (0.6, 9.0, fire, 2.6, true),
+                BuildKind::Sauna => (0.5, 6.0, fire, 1.8, true),
+                BuildKind::Spa => (0.6, 5.0, window, 1.2, false),
+                BuildKind::Tower | BuildKind::Catapult | BuildKind::Store | BuildKind::Bunkhouse | BuildKind::Workshop | BuildKind::SkiLodge => (1.4, 4.5, lamp, 1.0, false),
+                _ => continue,
+            };
+            found.push((b.center, b.z + h, reach, col, bright, flick));
+        }
+        let at = self.target;
+        found.sort_by(|a, b| a.0.dist(at).partial_cmp(&b.0.dist(at)).unwrap());
+        let strength = (0.18 + 0.82 * self.night.max(self.storm * 0.5)) * 1.0;
+        let t = scene.time;
+        let (mut pos, mut col) = ([[0.0; 4]; MAX_LIGHTS], [[0.0; 4]; MAX_LIGHTS]);
+        let n = found.len().min(MAX_LIGHTS);
+        for (k, &(p, h, reach, c, bright, flick)) in found.iter().take(n).enumerate() {
+            let w = gl(p, h);
+            let seed = p.x * 1.7 + p.y * 3.1;
+            let f = if flick { 1.0 + 0.14 * (t * 9.0 + seed).sin() + 0.08 * (t * 23.0 + seed * 3.0).sin() } else { 1.0 };
+            pos[k] = [w.x, w.y, w.z, reach * (0.97 + 0.03 * f)];
+            col[k] = [c[0] * bright * strength * f, c[1] * bright * strength * f, c[2] * bright * strength * f, 0.0];
+        }
+        self.lights = (pos, col, n);
     }
 
     /// Penguin instances for this frame grouped by mesh + frame pair.
@@ -1893,6 +1988,7 @@ impl WorldRenderer for Render3D {
         self.night = scene.night;
         self.storm = scene.storm;
         self.snowfall = scene.snowfall;
+        self.gather_lights(scene);
         self.update_snow(scene.dt, scene.time);
         self.post.ensure(ctx, fw, fh);
         if self.world_bind(ctx).is_none() {
