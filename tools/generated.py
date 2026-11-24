@@ -157,7 +157,67 @@ def crystal():
         bake(f"crystal-{k}", [obj])
 
 
-MODELS = {"crystal": crystal}
+def head_to_front(obj):
+    """Turn a long creature so its length runs along y and its head (the
+    higher end) points to -y, the front the game expects."""
+    import math
+    xs = [v.co.x for v in obj.data.vertices]
+    ys = [v.co.y for v in obj.data.vertices]
+    if max(xs) - min(xs) > max(ys) - min(ys):
+        for v in obj.data.vertices:
+            v.co = Vector((-v.co.y, v.co.x, v.co.z))
+    mid = sum(v.co.y for v in obj.data.vertices) / len(obj.data.vertices)
+    top = lambda front: max((v.co.z for v in obj.data.vertices if (v.co.y < mid) == front), default=0.0)
+    if top(False) > top(True):
+        for v in obj.data.vertices:
+            v.co = Vector((-v.co.x, -v.co.y, v.co.z))
+    obj.data.update()
+
+
+def classify(obj, rules, names, deep=1.4):
+    """Sort faces into `names` by `rules(hue, sat, val)` -> index, after
+    deepening the texture."""
+    deepen(obj, deep)
+    cols = face_colours(obj, texture_pixels(obj))
+    assign(obj, [rules(*colorsys.rgb_to_hsv(*c)) for c in cols], names)
+
+
+def seal():
+    """The leopard seal hauled out on the ice, head raised, jaws open."""
+    obj = load(f"{SRC}/seal.glb")
+    classify(obj, lambda h, s, v: 0, ["Seal Hide"], deep=1.3)
+    head_to_front(obj)
+    normalise(obj, 1.3)
+    decimate(obj, 2500)
+    bake("seal", [obj])
+
+
+def pedestal_rules(h, s, v):
+    """A power-up's pedestal: ice spikes shine, snow is snow, and the
+    saturated prize on top glows."""
+    if s > 0.45 and v > 0.35:
+        return 0
+    if 0.5 < h < 0.7 and s > 0.12:
+        return 1
+    if v > 0.7 and s < 0.15:
+        return 2
+    return 3
+
+
+def power(kind, src):
+    obj = load(f"{SRC}/{src}.glb")
+    classify(obj, pedestal_rules, ["Glow Prize", "Gloss Ice", "Snow", "Stone"])
+    normalise(obj, 0.6)
+    decimate(obj, 1500)
+    bake(f"power-{kind}", [obj])
+
+
+MODELS = {
+    "crystal": crystal,
+    "seal": seal,
+    "power-defense": lambda: power("defense", "gem"),
+    "power-double": lambda: power("double", "golden"),
+}
 
 if __name__ == "__main__":
     want = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else list(MODELS)
