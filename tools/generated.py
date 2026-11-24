@@ -212,7 +212,37 @@ def power(kind, src):
     bake(f"power-{kind}", [obj])
 
 
+def normalise_height(obj, height):
+    """Centre on the footprint, stand on z = 0, and scale to `height` tall."""
+    lo = Vector([min(v.co[i] for v in obj.data.vertices) for i in range(3)])
+    hi = Vector([max(v.co[i] for v in obj.data.vertices) for i in range(3)])
+    s = height / (hi.z - lo.z)
+    mid = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+    for v in obj.data.vertices:
+        v.co = (v.co - mid) * s
+
+
+def forest_rules(h, s, v):
+    """Snow is snow, brown is wood, the rest (needles) plain paint."""
+    if v > 0.68 and s < 0.2:
+        return 0
+    if s > 0.25 and (h < 0.11 or h > 0.95) and v < 0.7:
+        return 1
+    return 2
+
+
+def stump(name, src, width):
+    obj = load(f"{SRC}/{src}.glb")
+    classify(obj, forest_rules, ["Snow", "Wood", "Bark"], deep=1.3)
+    normalise(obj, width)
+    decimate(obj, 600)
+    bake(name, [obj])
+
+
 MODELS = {
+    "stump-0": lambda: stump("stump-0", "stump-squat", 0.74),
+    "stump-1": lambda: stump("stump-1", "stump-squat", 0.66),
+    "stump-2": lambda: stump("stump-2", "stump-tall", 0.62),
     "crystal": crystal,
     "seal": seal,
     "power-defense": lambda: power("defense", "gem"),
