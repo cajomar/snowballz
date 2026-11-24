@@ -178,6 +178,19 @@ fn local_diffuse(pos: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     }
     return c;
 }
+// In polar night the aurora's slow curtains wash the snow in green and
+// violet light from above.
+fn aurora_light(pos: vec3<f32>) -> vec3<f32> {
+    if (u.map.z < 0.01) { return vec3<f32>(0.0); }
+    let t = u.eye.w;
+    let p = vec2<f32>(pos.x, -pos.y);
+    let wob = vnoise(p * 0.018 + vec2<f32>(t * 0.015, 0.0)) * 7.0 + vnoise(p * 0.05 - vec2<f32>(0.0, t * 0.02)) * 2.0;
+    let band = sin(dot(p, vec2<f32>(0.6, 0.8)) * 0.11 + wob + t * 0.05) * 0.5 + 0.5;
+    let curtain = ss(0.55, 1.0, band) * (0.55 + 0.45 * vnoise(p * 0.08 + vec2<f32>(0.0, t * 0.1)));
+    let hue = vnoise(p * 0.012 + 40.0 + vec2<f32>(t * 0.01, 0.0));
+    let c = mix(vec3<f32>(0.15, 0.95, 0.55), vec3<f32>(0.55, 0.3, 1.0), ss(0.45, 0.75, hue));
+    return c * curtain * 0.3 * u.map.z * (1.0 - u.map.w);
+}
 // Their glints on shiny things (ice, water, metal).
 fn local_spec(pos: vec3<f32>, n: vec3<f32>, v: vec3<f32>, power: f32) -> vec3<f32> {
     var c = vec3<f32>(0.0);
@@ -209,7 +222,7 @@ fn fow_cloud(p: vec2<f32>) -> vec3<f32> {
     // Deep in a billow it is bluer and darker; tops catch the sun.
     let shade = mix(vec3<f32>(0.46, 0.52, 0.66), vec3<f32>(0.80, 0.84, 0.92), ss(0.25, 0.75, h));
     var c = shade * (0.55 + 0.6 * lit) + SUN_COLOR * pow(lit, 6.0) * 0.12 * ss(0.5, 0.8, h);
-    return night_tint(c) * 0.92;
+    return night_tint(c) * 0.92 + c * aurora_light(vec3<f32>(p.x, -p.y, 0.0)) * 0.8;
 }
 // How far a place is under the cloud: `unknown` from the fog map, with a
 // billowing edge.
@@ -436,7 +449,7 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     col += (1.0 - ice) * (1.0 - cliff) * (1.0 - trod) * glint * 2.2;
     col = night_tint(col);
     // Firelight: warm pools on the snow, glints off ice and water.
-    col += albedo * local_diffuse(i.pos, n) + (ice * 0.8 + water * 1.6) * local_spec(i.pos, n, V, 80.0);
+    col += albedo * (local_diffuse(i.pos, n) + aurora_light(i.pos) * max(n.z, 0.0)) + (ice * 0.8 + water * 1.6) * local_spec(i.pos, n, V, 80.0);
     let reg = tint_at(mp);
     // Ground you have seen but cannot see now fades to an old hand-drawn
     // map: tea-stained paper, ink outlines along shores and floes, and
@@ -606,7 +619,7 @@ fn fs(i: MOut) -> @location(0) vec4<f32> {
     let rim = pow(1.0 - max(dot(n, V), 0.0), 2.5);
     col += rim * mix(vec3<f32>(0.45, 0.6, 0.85) * 0.3, i.team.rgb * 1.4, min(i.misc.w, 1.0));
     col = night_tint(col);
-    col += albedo * local_diffuse(i.pos, n) + local_spec(i.pos, n, V, select(24.0, 90.0, glossy)) * (surf.w * 0.5 + 0.1);
+    col += albedo * (local_diffuse(i.pos, n) + aurora_light(i.pos) * max(n.z, 0.0)) + local_spec(i.pos, n, V, select(24.0, 90.0, glossy)) * (surf.w * 0.5 + 0.1);
     // Glowing parts (fire, lamps) shine past white, so they bloom.
     col = mix(col, albedo * 2.2, emissive * 0.8);
     // Above 1.0 the highlight slot carries a white hit flash.
