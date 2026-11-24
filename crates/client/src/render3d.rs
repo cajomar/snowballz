@@ -48,7 +48,8 @@ pub struct Inst {
     /// team rgb + cold tint
     pub color: [u8; 4],
     /// Penguins' body language, in radians: lean forward, roll to the
-    /// right; then squash (shorter and wider), unused.
+    /// right; then squash (shorter and wider); then how much it sways in
+    /// the wind (trees).
     pub tilt: [f32; 4],
 }
 
@@ -571,7 +572,18 @@ fn vs(
     n = vec3<f32>(n.x * cr + n.z * sr, n.y, n.z * cr - n.x * sr);
     let c = cos(pos_yaw.w);
     let s = sin(pos_yaw.w);
-    p = vec3<f32>(c * p.x - s * p.y, s * p.x + c * p.y, p.z) + pos_yaw.xyz;
+    p = vec3<f32>(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
+    // Trees bend with the wind, more at the top, in gusts that roll across
+    // the forest; harder in a blizzard.
+    if (tilt.w > 0.0) {
+        let t = u.eye.w;
+        let ph = dot(pos_yaw.xy, vec2<f32>(0.21, 0.13));
+        let gust = 0.6 + 0.4 * sin(t * 0.7 - ph * 0.8) + u.map.w * 1.5;
+        let w = vec2<f32>(sin(t * 1.6 + ph * 3.0) + 0.35 * sin(t * 3.7 + ph * 5.0), 0.4 * cos(t * 1.3 + ph * 4.0)) * gust * tilt.w;
+        let h = max(p.z, 0.0);
+        p = vec3<f32>(p.xy + w * 0.025 * h * h, p.z);
+    }
+    p = p + pos_yaw.xyz;
     n = vec3<f32>(c * n.x - s * n.y, s * n.x + c * n.y, n.z);
     var o: MOut;
     o.clip = u.viewproj * vec4<f32>(p, 1.0);
@@ -1332,7 +1344,8 @@ impl Render3D {
                     Obstacle::Stump => (M::Stump(rng.below(STUMP_VARIANTS as u32) as u8), rng.range(0.9, 1.2)),
                     _ => (M::Pinnacle(rng.below(3) as u8), rng.range(0.8, 1.2)),
                 };
-                self.statics.push((m, Inst { tilt: [0.0; 4],
+                let sway = if matches!(m, M::Tree(_)) { rng.range(0.7, 1.3) } else { 0.0 };
+                self.statics.push((m, Inst { tilt: [0.0, 0.0, 0.0, sway],
                     pos_yaw: [p.x, -p.y, z, rng.range(0.0, TAU)],
                     misc: [scale, 0.0, 1.0, 0.0],
                     color: [255, 255, 255, 0],
