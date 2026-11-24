@@ -785,6 +785,14 @@ fn fs_water(i: TOut) -> @location(0) vec4<f32> {
     let sw = vnoise(r * 0.45 + vec2<f32>(t * 0.2, -t * 0.1)) + vnoise(p * 1.3 - vec2<f32>(t * 0.05, t * 0.13)) * 0.5;
     col += ss(0.7, 1.2, sw) * vec3<f32>(0.04, 0.07, 0.08);
     col += pow(max(dot(reflect(-L, n), V), 0.0), 120.0) * vec3<f32>(1.0, 0.95, 0.85) * 1.2;
+    // Glitter: tiny wave facets catching the sun, sparkling as they move.
+    let gc = floor(p * 3.0 + vec2<f32>(t * 0.6, t * 0.25));
+    let glit = step(0.985, hash(gc + floor(t * 2.0) * 7.0)) * pow(max(dot(reflect(-L, n), V), 0.0), 8.0);
+    col += glit * u.sun_color.rgb * 3.0 * (1.0 - u.map.z) * (1.0 - u.map.w);
+    // Ice floes drift on the open sea.
+    let fq = p * 0.32 + vec2<f32>(t * 0.012, t * 0.005);
+    let floe = ss(0.78, 0.8, vnoise(fq) * 0.6 + vnoise(fq * 2.9 + 4.0) * 0.4) * (1.0 - shore);
+    col = mix(col, vec3<f32>(0.85, 0.92, 0.97) * (0.9 + 0.1 * vnoise(p * 2.0)), floe * 0.9);
     // Lapping foam where the floe meets the sea.
     let q = mat2x2<f32>(vec2<f32>(0.8, -0.6), vec2<f32>(0.6, 0.8)) * p;
     let lap = vnoise(q * 1.6 + vec2<f32>(t * 0.35, 0.0)) * 0.6 + vnoise(q * 4.1 - vec2<f32>(0.0, t * 0.5)) * 0.4;
