@@ -116,3 +116,23 @@ Clips the game plays: every fighter has `stand walk throw scoop cheer
 flinch knocked`; workers add `carry fish unload hammer chop sit`; the
 Warmer has `warm` and no `throw`; the Sled has neither `throw` nor `scoop`.
 A kind without a `unit-` model falls back to the old warrior.
+
+## Generated models
+
+Some models are made by a picture-to-3D model running locally: a concept
+picture (FLUX.1-schnell) is cut out of its background and turned into a
+textured mesh by TRELLIS.2, both in ComfyUI on the graphics card. The
+mesh is kept in `art/generated/NAME.glb` (texture shrunk to 1024), and
+`tools/generated.py` bakes it into the game's format:
+
+```console
+blender -b --python tools/generated.py -- crystal
+```
+
+It sorts the faces into the game's materials by the colour of their
+texture (crystal glows and shines, white is snow, the rest stone), darkens
+the texture's midtones (generated textures are lit softly and read washed
+out under the game's sun), stands the model on z = 0 at its footprint's
+size, keeps it under its triangle budget, and makes the versions the game
+needs (`crystal-0` to `crystal-3`, worn down as it is mined). Adding a
+model means a function in `tools/generated.py` and an entry in `MODELS`.
