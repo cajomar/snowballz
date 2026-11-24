@@ -452,6 +452,18 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     let pick = step(0.97, hash(cell + floor(u.eye.xy * 0.6) * 17.0));
     let glint = pick * ss(0.18, 0.0, length(fc)) * pow(nh, 4.0) * sh;
     col += (1.0 - ice) * (1.0 - cliff) * (1.0 - trod) * glint * 2.2;
+    // Spindrift: fine snow streaming over the ground with the wind, in
+    // gusts; a blizzard drives it hard.
+    {
+        let wind = vec2<f32>(0.8, 0.6);
+        let side = vec2<f32>(-wind.y, wind.x);
+        let speed = 1.2 + u.map.w * 4.0;
+        let a = vec2<f32>(dot(mp, wind) - t * speed, dot(mp, side));
+        let streak = vnoise(vec2<f32>(a.x * 0.9, a.y * 6.0)) * vnoise(vec2<f32>(a.x * 0.25, a.y * 1.5) + 3.0);
+        let gusts = ss(0.35, 0.75, vnoise(mp * 0.05 - wind * t * 0.08)) + u.map.w;
+        let drift_amt = ss(0.3, 0.6, streak) * gusts * fine * (1.0 - water) * (1.0 - cliff) * 0.16;
+        col += vec3<f32>(0.9, 0.95, 1.0) * drift_amt * (0.5 + 0.5 * sh);
+    }
     col = night_tint(col);
     // Firelight: warm pools on the snow, glints off ice and water.
     col += albedo * (local_diffuse(i.pos, n) + aurora_light(i.pos) * max(n.z, 0.0)) + (ice * 0.8 + water * 1.6) * local_spec(i.pos, n, V, 80.0);
