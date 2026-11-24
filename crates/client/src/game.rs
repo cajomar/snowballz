@@ -1525,11 +1525,17 @@ let chief = self.view.world.penguins.get(penguin as usize).is_some_and(|p| p.kin
         // igloos (in front of the door) their guards.
         if ppt > 8.0 {
             let pips = |ui: &mut Ui, x: f32, y: f32, slots: u8, filled: u8, training: u8| {
-                let (pip, gap) = (10.0, 4.0);
-                let x0 = x - (slots as f32 * (pip + gap) - gap) / 2.0;
+                // Little round beads on a soft dark backing: a ring for an
+                // empty slot, a disc growing in it while one trains, solid
+                // when filled.
+                let (r, gap) = (5.0, 4.0);
+                let step = r * 2.0 + gap;
+                let x0 = x - (slots as f32 * step - gap) / 2.0 + r;
+                let cy = y + r;
+                let back = Rect { x: x0 - r - 4.0, y: cy - r - 3.0, w: slots as f32 * step - gap + 8.0, h: r * 2.0 + 6.0 };
+                ui.batch.round_rect(ui.ctx, back, r + 3.0, [14, 22, 40, 150]);
                 for k in 0..slots {
-                    let px = x0 + k as f32 * (pip + gap);
-                    ui.batch.rect(ui.ctx, px - 1.5, y - 1.5, pip + 3.0, pip + 3.0, [20, 30, 50, 220]);
+                    let cx = x0 + k as f32 * step;
                     let fill = if k < filled {
                         1.0
                     } else if k == filled && training > 0 {
@@ -1537,10 +1543,15 @@ let chief = self.view.world.penguins.get(penguin as usize).is_some_and(|p| p.kin
                     } else {
                         0.0
                     };
-                    ui.batch.rect(ui.ctx, px, y, pip, pip, [70, 80, 100, 230]);
-                    if fill > 0.0 {
-                        let col = if fill >= 1.0 { theme::ACCENT } else { [235, 190, 80, 255] };
-                        ui.batch.rect(ui.ctx, px, y + pip * (1.0 - fill), pip, pip * fill, col);
+                    if fill >= 1.0 {
+                        ui.batch.ellipse(ui.ctx, cx, cy, r, r, theme::ACCENT);
+                        ui.batch.ellipse(ui.ctx, cx - r * 0.3, cy - r * 0.3, r * 0.35, r * 0.35, [255, 255, 255, 110]);
+                    } else {
+                        if fill > 0.0 {
+                            let f = (r - 1.0) * fill.sqrt();
+                            ui.batch.ellipse(ui.ctx, cx, cy, f, f, [235, 190, 80, 255]);
+                        }
+                        ui.batch.ring(ui.ctx, cx, cy, r, r, 1.6, [225, 232, 245, 210]);
                     }
                 }
             };
