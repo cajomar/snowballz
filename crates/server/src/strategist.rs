@@ -623,7 +623,7 @@ fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sim::ai::AiLevel;
+    use sim::ai::{AiLevel, Posture};
     use sim::game::PlayerSetup;
     use sim::map::Map;
     use std::net::TcpListener;
@@ -700,12 +700,11 @@ mod tests {
         let url = fake_server("Plan:\n```json\n{\"posture\":\"rush\",\"target\":1,\"favour\":\"slinger\",\"research\":null}\n```".into());
         let mut s = Strategist::start_with(url, String::new(), String::new());
         let mut g = game();
-        let steered = |_: &Strategist, g: &Game| g.ai_briefings().iter().all(|(_, text)| text.contains("posture: Rush"));
+        let steered = |_: &Strategist, g: &Game| (0..2).all(|p| g.ai_directive(p).is_some_and(|d| d.posture == Posture::Rush));
         assert!(run_until(&mut s, &mut g, steered), "{:?}", g.ai_briefings());
         // Player 0 may pick on player 1; player 1 cannot aim at itself.
-        let briefings = g.ai_briefings();
-        assert!(briefings[0].1.contains("target: Some(1)"), "{}", briefings[0].1);
-        assert!(briefings[1].1.contains("target: None"), "{}", briefings[1].1);
+        assert_eq!(g.ai_directive(0).unwrap().target, Some(1));
+        assert_eq!(g.ai_directive(1).unwrap().target, None);
     }
 
     /// Ticks until the game has something new to say; returns what was said.
@@ -794,7 +793,7 @@ mod tests {
         });
         let mut s = Strategist::start_with(format!("http://{addr}/v1"), String::new(), "true".into());
         let mut g = game();
-        let steered = |_: &Strategist, g: &Game| g.ai_briefings().iter().all(|(_, text)| text.contains("posture: Turtle"));
+        let steered = |_: &Strategist, g: &Game| (0..2).all(|p| g.ai_directive(p).is_some_and(|d| d.posture == Posture::Turtle));
         assert!(run_until(&mut s, &mut g, steered), "the game never heard from the late model server");
     }
 
@@ -833,7 +832,7 @@ mod tests {
         let (url, seen) = fake_ollama();
         let mut s = Strategist::start_with(url, "tiny".into(), String::new());
         let mut g = game();
-        let steered = |_: &Strategist, g: &Game| g.ai_briefings().iter().all(|(_, text)| text.contains("posture: Rush"));
+        let steered = |_: &Strategist, g: &Game| (0..2).all(|p| g.ai_directive(p).is_some_and(|d| d.posture == Posture::Rush));
         assert!(run_until(&mut s, &mut g, steered), "the model never advised");
         let pulls = seen.lock().unwrap().iter().filter(|l| l.contains("/api/pull")).count();
         assert_eq!(pulls, 1, "{:?}", seen.lock().unwrap());
@@ -868,7 +867,7 @@ mod tests {
         let mut s = Strategist::start_with(fake_server("I refuse to play.".into()), String::new(), String::new());
         let mut g = game();
         assert!(run_until(&mut s, &mut g, round_done), "no round was asked and answered");
-        assert!(g.ai_briefings().iter().all(|(_, text)| text.contains("posture: Balanced")));
+        assert!((0..2).all(|p| g.ai_directive(p) == Some(Directive::default())));
     }
 
     #[test]
@@ -876,7 +875,7 @@ mod tests {
         let mut s = Strategist::start_with("http://127.0.0.1:9/v1".into(), String::new(), String::new());
         let mut g = game();
         assert!(run_until(&mut s, &mut g, round_done), "no round was asked and answered");
-        assert!(g.ai_briefings().iter().all(|(_, text)| text.contains("posture: Balanced")));
+        assert!((0..2).all(|p| g.ai_directive(p) == Some(Directive::default())));
     }
 
     /// Needs a real model, e.g.
@@ -940,7 +939,7 @@ mod tests {
         }
         println!("{:.1}s: {}", began.elapsed().as_secs_f32(), g.ai_briefings()[0].1.lines().last().unwrap());
         assert!(s.next_round > FIRST_AFTER && s.outstanding == 0, "no answer came");
-        assert!(!g.ai_briefings().iter().all(|(_, t)| t.contains("posture: Balanced, target: None, favour: None, research: None")), "the model's advice never arrived");
+        assert!((0..2).any(|p| g.ai_directive(p) != Some(Directive::default())), "the model's advice never arrived");
     }
 
     /// The built-in engine, end to end: `cargo test --release -p server --features vulkan embedded_engine -- --ignored --nocapture`
@@ -951,9 +950,9 @@ mod tests {
         let mut s = Strategist::start_with(String::new(), "auto".into(), String::new());
         let mut g = game();
         // (The game runs far faster than real time here, so rounds follow each other at once.)
-        let advised = |_: &Strategist, g: &Game| !g.ai_briefings()[0].1.contains("posture: Balanced, target: None, favour: None, research: None");
+        let advised = |_: &Strategist, g: &Game| g.ai_directive(0) != Some(Directive::default());
         assert!(run_until_for(&mut s, &mut g, 120, advised), "no answer came");
-        println!("{}", g.ai_briefings()[0].1.lines().last().unwrap());
+        println!("{:?}", g.ai_directive(0));
         for (ai, to, fact) in g.ai_replies(1, Some(0), "truce?") {
             s.reword(&mut g, ai, to, "truce?", fact);
         }

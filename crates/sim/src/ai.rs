@@ -98,17 +98,17 @@ pub const DIRECTIVE_GUIDE: &str = "You are the mind of a computer player in Snow
 penguin tribes. You get a report on the tribe, its character and its current plan. Play the character: make the \
 choices that kind of chieftain would make, even risky ones, so that every game against it feels different. \
 Pick the plan for the next minute or two. Reply with ONE JSON object and nothing else:\n\
-{\"plan\":\"grow|expand|raid|siege|dig in\",\"target\":<player number or null>,\
-\"favour\":\"snowballer|slinger|packer|sledder|skier|shield|null\",\
-\"research\":\"fishery|snowcraft|icecraft|null\",\"say\":\"\",\"reason\":\"one short sentence: why\"}\n\
-grow: fish, raise workers and build the igloo up; attack nobody. expand: take empty igloos. \
+{\"plan\":\"grow|raid|siege|dig in\",\"target\":<player number or null>,\
+\"favour\":\"snowballer|slinger|packer|skier|shieldbearer|null\",\"say\":\"\",\"reason\":\"one short sentence: why\"}\n\
+grow: fish, raise workers and build up; attack nobody. \
 raid: small quick attacks on the target. siege: gather a big army and take the target's igloo. \
 dig in: towers and defence; attack nobody. raid and siege need a target: an enemy player number from the report. \
 Keep the current plan unless something has changed or it has run its course. \
 say: only when you change plan, one short in-character line (under 20 words) announcing it to the other players; \
 otherwise an empty string. Never promise a truce in it. \
-favour: the fighter to raise more of. research: the branch to learn first. Use null for no preference. \
-reason: one plain sentence (under 30 words) saying what in the report led you to this plan.";
+favour: the fighter to raise more of, or null for no preference. \
+reason: one plain sentence (under 30 words) naming the facts in the report that led you to this plan; \
+use only what the report says, never invent events.";
 
 /// What a language model is told when it puts a computer player's reply
 /// into words. The game has already decided what the reply means.
@@ -131,7 +131,12 @@ joke along, answer questions, and now and then ask one back. Teasing about the g
 quiet, stop talking, go away or get back to their igloo, and never insult them. Never agree to, \
 offer or promise a truce, an alliance, peace or any deal, and never claim to have done something in the game: if \
 they ask for a deal, tell them to ask for a truce plainly. Reply with ONE short line of chat (at most 25 words), \
-plain text, no quotes, no name tag in front.";
+plain text, no quotes, no name tag in front. \
+You are a computer player, and say so cheerfully if asked. What you know about the game: workers fish, chop wood, \
+carry and build; camps train them into fighters (snowballers, slingers, packers, skiers, shieldbearers) and helpers \
+(sleds drag frozen penguins home, warmers thaw them); a penguin hit enough freezes into a block of ice, then thaws \
+wild for anyone to win over, or joins whoever's warmer thaws it; newcomers swim in from the sea for fish; fires and \
+saunas keep penguins warm; a tribe wins by owning every igloo. If you don't know something, say so.";
 
 pub const CHAT_GUIDE: &str = "You are the voice of a computer player in Snowballz, a real-time snowball fight between \
 penguin tribes: a cheerful, competitive penguin chieftain who likes the other players. You get a short report on your tribe, what \
@@ -160,7 +165,7 @@ impl Directive {
             _ => Posture::Balanced,
         };
         let target = j.get("target").and_then(Json::as_f64).filter(|n| (0.0..16.0).contains(n)).map(|n| n as u8);
-        let favour = word("favour").and_then(|w| FAVOURITES.iter().copied().find(|k| k.stats().name.to_ascii_lowercase() == w));
+        let favour = word("favour").map(|w| if w == "shield" { "shieldbearer".to_string() } else { w }).and_then(|w| FAVOURITES.iter().copied().find(|k| k.stats().name.to_ascii_lowercase() == w));
         let research = match word("research").as_deref() {
             Some("fishery") => Some(FISHERY),
             Some("snowcraft") => Some(SNOWCRAFT),
@@ -1947,6 +1952,12 @@ impl Ai {
         if let Some(reply) = self.talk_terms(g, from, &words) {
             return Some(Reply { to: Some(from), text: reply, binding: true });
         }
+        // Asked what it is, it says plainly: a computer player. (Left to a
+        // small model, it claims to be a person.)
+        let asks_what = ["bot", "bots", "robot", "computer", "ai", "human", "npc"].iter().any(|w| has(w)) || (has("real") && (has("person") || has("player")));
+        if asks_what && (addressed || m.contains('?') || has("you") || has("u")) {
+            return Some(Reply { to: Some(from), text: "Yes, I'm a computer player. A penguin at heart, though.".into(), binding: true });
+        }
         // Don't answer every message in a public chat.
         if !addressed && !self.rng.chance((0.5 * around(self.temper.chatter, 1.0, 1.9)).min(1.0)) {
             return None;
@@ -1969,8 +1980,6 @@ impl Ai {
             "I'll take that as a compliment".into()
         } else if m.contains("fair") {
             "Life isn't fair!".into()
-        } else if m.contains("bot") {
-            "A bot? Me? I'm a penguin with feelings! Mostly about snowballs.".into()
         } else if has("go") && has("away") {
             "I'll go away when I want to!".into()
         } else if has("no") {
@@ -2024,15 +2033,12 @@ impl Ai {
             g.players[me as usize].name,
             self.level.name()
         );
-        out += &format!(
-            "Igloos {} (tiers {:?}), fish {}, wood {}, crystal {}, research levels {:?}.\n",
-            mine.len(),
-            mine.iter().map(|i| i.tier).collect::<Vec<_>>(),
-            g.fish_of(me),
-            g.wood_of(me),
-            g.crystal_of(me),
-            g.levels_of(me)
-        );
+        out += &format!("Igloos {}, fish {}, wood {}, crystal {}", mine.len(), g.fish_of(me), g.wood_of(me), g.crystal_of(me));
+        // Tiers and research only exist with the tech rules on.
+        if g.core.tech {
+            out += &format!(", igloo tiers {:?}, research levels {:?}", mine.iter().map(|i| i.tier).collect::<Vec<_>>(), g.levels_of(me));
+        }
+        out += ".\n";
         out += &format!("Workers {}, fighters {}.\n", count(&|p| p.kind == Kind::Worker), count(&|p| p.kind.fights()));
         for p in g.players.iter().filter(|p| p.id != me && !p.out) {
             let igloos: Vec<usize> = g.igloos.iter().filter(|i| i.owner == p.id).map(|i| i.id as usize).collect();
@@ -2047,7 +2053,14 @@ impl Ai {
                 guards
             );
         }
-        out += &format!("Attack: target {:?}, group {}. Current directive: {:?}.\n", self.target, self.group.len(), self.directive);
+        let attacking = self.target.and_then(|ig| g.igloos.get(ig as usize)).and_then(|ig| g.players.get(ig.owner as usize));
+        out += &match attacking {
+            Some(p) => format!("Attacking player {} ({}) with {} fighters.\n", p.id, p.name, self.group.len()),
+            None => "Not attacking anyone.\n".to_string(),
+        };
+        if let Some(k) = self.directive.favour {
+            out += &format!("Raising more {} on your advice.\n", k.stats().plural);
+        }
         if self.temper.rolled {
             out += &format!("Your character: {}: {}.\n", g.players[me as usize].name, self.temper.describe());
         }

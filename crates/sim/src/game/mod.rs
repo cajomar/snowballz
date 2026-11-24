@@ -1470,6 +1470,11 @@ impl Game {
     }
 
     /// Per computer player: its number and the report to base a directive on.
+    /// The advice a computer player is following, if it is a computer.
+    pub fn ai_directive(&self, player: u8) -> Option<Directive> {
+        self.ais.iter().find(|a| a.player == player).map(|a| a.directive)
+    }
+
     pub fn ai_briefings(&self) -> Vec<(u8, String)> {
         self.ais.iter().filter(|a| !self.players[a.player as usize].out).map(|a| (a.player, a.briefing(self))).collect()
     }

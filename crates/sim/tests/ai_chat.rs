@@ -70,3 +70,17 @@ fn small_talk_never_tells_you_to_be_quiet() {
         }
     }
 }
+
+/// Asked whether it is a bot, a computer says so, in words no model may
+/// change; "both" is not a question about bots.
+#[test]
+fn a_computer_says_plainly_that_it_is_one() {
+    for ask in ["are you a bot?", "Tux, is that a real person?", "you an AI?"] {
+        let mut g = game(1);
+        let replies = g.ai_replies_full(0, Some(1), ask);
+        let (_, r) = replies.first().unwrap_or_else(|| panic!("no answer to {ask:?}"));
+        assert!(r.binding && r.text.contains("computer player"), "{ask:?} -> {r:?}");
+    }
+    let mut g = game(1);
+    assert!(g.ai_replies_full(0, Some(1), "we both love fish").iter().all(|(_, r)| !r.text.contains("computer player")));
+}

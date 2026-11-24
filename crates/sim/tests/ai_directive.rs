@@ -63,9 +63,13 @@ fn the_briefing_tells_what_the_tribe_knows() {
     run(&mut g, 1);
     let (player, text) = g.ai_briefings().remove(0);
     assert_eq!(player, 0);
-    for want in ["player 0", "Workers", "Player 1 (AI 1): enemy", "Current directive"] {
+    for want in ["player 0", "Workers", "Player 1 (AI 1): enemy"] {
         assert!(text.contains(want), "no {want:?} in:\n{text}");
     }
+    // The model reads plain words, not Rust's debug text, and nothing about
+    // tiers or research while those rules are off.
+    assert!(!text.contains("Some(") && !text.contains("None") && !text.contains('{'), "debug text in:\n{text}");
+    assert!(!text.contains("research") && !text.contains("tiers"), "tech in the briefing with tech off:\n{text}");
 }
 
 /// The second an AI is first ready to attack someone (it may still hold off
@@ -146,7 +150,7 @@ fn a_cautious_posture_never_asks_for_more_fighters_than_the_tribe_has() {
 
 #[test]
 fn the_advisor_is_told_to_play_the_character_and_pick_a_plan() {
-    for needle in ["Play the character", "grow|expand|raid|siege|dig in", "raid and siege need a target", "Never promise a truce"] {
+    for needle in ["Play the character", "grow|raid|siege|dig in", "raid and siege need a target", "Never promise a truce"] {
         assert!(sim::ai::DIRECTIVE_GUIDE.contains(needle), "the guide lost: {needle}");
     }
 }
@@ -159,6 +163,20 @@ fn a_plan_is_read_from_a_reply_and_needs_a_target_to_attack() {
     assert_eq!(Directive::from_reply(r#"{"plan":"raid","target":null}"#).unwrap().plan, None, "a raid on nobody");
     assert_eq!(Directive::from_reply(r#"{"plan":"Dig In"}"#).unwrap().plan, Some(sim::ai::Plan::DigIn));
     assert_eq!(Directive::say_from_reply(r#"{"plan":"grow","say":""}"#), None);
+}
+
+/// Every option the model is offered does something: the fighters it may
+/// favour parse, and "expand" (empty igloos can't be walked into) means grow.
+#[test]
+fn the_models_options_all_mean_something() {
+    for (word, kind) in [("snowballer", Kind::Snowballer), ("slinger", Kind::Slinger), ("packer", Kind::Packer), ("skier", Kind::Skier), ("shieldbearer", Kind::Shield), ("shield", Kind::Shield)] {
+        let d = Directive::from_reply(&format!(r#"{{"plan":"grow","favour":"{word}"}}"#)).unwrap();
+        assert_eq!(d.favour, Some(kind), "{word}");
+    }
+    assert_eq!(Directive::from_reply(r#"{"plan":"expand"}"#).unwrap().plan, Some(sim::ai::Plan::Grow));
+    for gone in ["sledder", "expand", "research"] {
+        assert!(!sim::ai::DIRECTIVE_GUIDE.contains(gone), "the guide still offers {gone}");
+    }
 }
 
 #[test]

@@ -29,8 +29,9 @@ impl Plan {
     /// Read a plan from a model's words; raid and siege need a target.
     pub fn parse(word: &str, target: Option<u8>) -> Option<Plan> {
         match word.trim().to_ascii_lowercase().replace(['_', '-'], " ").as_str() {
-            "grow" => Some(Plan::Grow),
-            "expand" => Some(Plan::Expand),
+            // Empty igloos can't be walked into any more, so a model that
+            // still says expand means build up.
+            "grow" | "expand" => Some(Plan::Grow),
             "raid" => target.map(Plan::Raid),
             "siege" => target.map(Plan::Siege),
             "dig in" | "digin" | "defend" => Some(Plan::DigIn),
