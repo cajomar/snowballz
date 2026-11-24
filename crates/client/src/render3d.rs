@@ -95,6 +95,7 @@ pub struct WorldUniforms {
     pub light_cols: [[f32; 4]; MAX_LIGHTS],
     /// The sun's colour and the sky's tint, by season.
     pub sun_color: [f32; 4],
+    /// rgb: the sky's tint; w: how far into the thaw (wet snow, meltwater).
     pub sky_tint: [f32; 4],
 }
 
@@ -463,6 +464,20 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     let pick = step(0.97, hash(cell + floor(u.eye.xy * 0.6) * 17.0));
     let glint = pick * ss(0.18, 0.0, length(fc)) * pow(nh, 4.0) * sh;
     col += (1.0 - ice) * (1.0 - cliff) * (1.0 - trod) * glint * 2.2;
+    // The thaw: snow goes grey and wet, and meltwater lies in the hollows
+    // and trodden paths, mirroring the sky.
+    if (u.sky_tint.w > 0.01) {
+        let wet = u.sky_tint.w * snowy;
+        let pool = vnoise(mp * 0.55 + 21.0) * 0.55 + vnoise(mp * 1.7 + 5.0) * 0.2 + (1.0 - ss(0.25, 0.8, h0)) * 0.2 + trod * 0.3;
+        let melt = ss(0.6, 0.612, pool) * wet;
+        // Slush round the edge of each pool.
+        let slush = ss(0.55, 0.6, pool) * (1.0 - melt / max(wet, 1e-3)) * wet;
+        col *= 1.0 - 0.1 * wet - 0.15 * slush;
+        let fw = pow(1.0 - max(V.z, 0.0), 3.0);
+        let refl = sky_light(reflect(-V, vec3<f32>(0.0, 0.0, 1.0))) * (0.18 + fw * 0.8);
+        col = mix(col, vec3<f32>(0.16, 0.26, 0.34) * (0.6 + diff * sh * 0.4) + refl * 1.4, melt * 0.9);
+        col += melt * pow(max(dot(vec3<f32>(0.0, 0.0, 1.0), H), 0.0), 200.0) * 3.0 * sh * u.sun_color.rgb;
+    }
     // Spindrift: fine snow streaming over the ground with the wind, in
     // gusts; a blizzard drives it hard.
     {
@@ -472,7 +487,7 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
         let a = vec2<f32>(dot(mp, wind) - t * speed, dot(mp, side));
         let streak = vnoise(vec2<f32>(a.x * 0.9, a.y * 6.0)) * vnoise(vec2<f32>(a.x * 0.25, a.y * 1.5) + 3.0);
         let gusts = ss(0.35, 0.75, vnoise(mp * 0.05 - wind * t * 0.08)) + u.map.w;
-        let drift_amt = ss(0.3, 0.6, streak) * gusts * fine * (1.0 - water) * (1.0 - cliff) * 0.16;
+        let drift_amt = ss(0.35, 0.65, streak) * min(gusts, 1.6) * fine * (1.0 - water) * (1.0 - cliff) * 0.09;
         col += vec3<f32>(0.9, 0.95, 1.0) * drift_amt * (0.5 + 0.5 * sh);
     }
     col = night_tint(col);
@@ -1503,7 +1518,7 @@ impl Render3D {
                 let summer = [1.04, 1.0, 0.93];
                 let thaw = [0.97, 1.0, 0.98];
                 let c: Vec<f32> = (0..3).map(|i| 1.0 + (summer[i] - 1.0) * self.summer + (thaw[i] - 1.0) * self.thaw).collect();
-                [c[0], c[1], c[2], 0.0]
+                [c[0], c[1], c[2], self.thaw]
             },
         }
     }
