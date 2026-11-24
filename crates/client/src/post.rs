@@ -149,9 +149,33 @@ fn ao_at(uv: vec2<f32>) -> f32 {
     return textureSampleLevel(tex_c, lin, uv, 0.0).r;
 }
 
+// Tilt-shift: the top and bottom of the screen go softly out of focus,
+// so the battlefield looks like a model under glass.
+fn tilt_shift(uv: vec2<f32>) -> vec3<f32> {
+    let centre = textureSampleLevel(tex_a, lin, uv, 0.0).rgb;
+    let r = ss_(0.2, 0.5, abs(uv.y - 0.52)) * 4.5;
+    if (r < 0.3) { return centre; }
+    let t = texel(tex_a);
+    var c = centre;
+    var w = 1.0;
+    // A golden-angle spiral of taps over a disc `r` pixels wide.
+    for (var k = 0; k < 12; k++) {
+        let f = f32(k) + 0.5;
+        let a = f * 2.39996;
+        let d = sqrt(f / 12.0) * r;
+        c += textureSampleLevel(tex_a, lin, uv + vec2<f32>(cos(a), sin(a)) * d * t, 0.0).rgb;
+        w += 1.0;
+    }
+    return c / w;
+}
+fn ss_(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = clamp((x - e0) / (e1 - e0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
 @fragment
 fn fs_finish(i: POut) -> @location(0) vec4<f32> {
-    var col = textureSampleLevel(tex_a, lin, i.uv, 0.0).rgb;
+    var col = tilt_shift(i.uv);
     let ao = ao_at(i.uv);
     col *= mix(1.0, ao, u.params.y);
     col += textureSampleLevel(tex_b, lin, i.uv, 0.0).rgb * u.params.z;
