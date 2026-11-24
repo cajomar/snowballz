@@ -196,6 +196,22 @@ impl Effects {
         self.add(p);
     }
 
+    /// A penguin's breath, steaming in the cold air.
+    pub fn breath(&mut self, pos: Vec3, dir: Vec2) {
+        let p = Particle {
+            pos,
+            vel: v3(dir.x * 0.35, dir.y * 0.35, 0.18),
+            life: 0.9,
+            max: 0.9,
+            size: 0.05,
+            color: [235, 242, 255, 90],
+            gravity: 0.0,
+            grow: 0.22,
+            glow: false,
+        };
+        self.add(p);
+    }
+
     /// A puff of powder left hanging behind a snowball in flight.
     pub fn trail(&mut self, pos: Vec3, size: f32) {
         let p = Particle {

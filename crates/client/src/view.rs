@@ -582,13 +582,21 @@ impl GameView {
                 if !p.exposed || p.inside || p.act == Act::Frozen {
                     continue;
                 }
-                let (pos, _) = self.world.penguin_at(p.id, t);
+                let (pos, facing) = self.world.penguin_at(p.id, t);
                 // Skip penguins hidden by fog or off screen, like the draw.
                 if (p.owner == NEUTRAL || self.world.team(p.owner) != team) && !self.in_sight(pos) {
                     continue;
                 }
                 if !self.on_screen(pos) {
                     continue;
+                }
+                // Breath steams in the cold: a puff every couple of seconds,
+                // each penguin on its own beat.
+                let beat = ((self.time * 0.45 + p.id as f32 * 0.379) % 1.0) < 0.15;
+                if beat && ((self.time / 0.3) as u32 + p.id as u32) % 2 == 0 {
+                    let ahead = Vec2::from_angle(facing) * 0.28;
+                    let z = map.height_at(pos) + 0.72;
+                    self.effects.breath(v3(pos.x + ahead.x, pos.y + ahead.y, z), Vec2::from_angle(facing));
                 }
                 // One slow-drifting sparkle per penguin, deterministic.
                 let a = p.id as f32 * 2.1 + self.time * 0.7;
