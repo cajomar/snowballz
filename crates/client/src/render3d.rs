@@ -192,6 +192,30 @@ fn local_spec(pos: vec3<f32>, n: vec3<f32>, v: vec3<f32>, power: f32) -> vec3<f3
     }
     return c;
 }
+// Land nobody has seen lies under a sea of cloud drifting with the wind:
+// billows lit by the sun from the side, shaded blue underneath, with no
+// hint of what is below.
+fn cloud_height(p: vec2<f32>) -> f32 {
+    let t = u.eye.w;
+    let q = p * 0.11 + vec2<f32>(t * 0.010, t * 0.004);
+    return vnoise(q) * 0.5 + vnoise(q * 2.1 + 3.7) * 0.28 + vnoise(q * 4.3 + 9.1) * 0.14 + vnoise(q * 9.0 + 1.3) * 0.08;
+}
+fn fow_cloud(p: vec2<f32>) -> vec3<f32> {
+    let h = cloud_height(p);
+    let e = 0.6;
+    let g = vec2<f32>(cloud_height(p + vec2<f32>(e, 0.0)) - h, cloud_height(p + vec2<f32>(0.0, e)) - h) / e;
+    let n = normalize(vec3<f32>(-g.x * 9.0, g.y * 9.0, 1.0));
+    let lit = max(dot(n, normalize(u.sun.xyz)), 0.0);
+    // Deep in a billow it is bluer and darker; tops catch the sun.
+    let shade = mix(vec3<f32>(0.46, 0.52, 0.66), vec3<f32>(0.80, 0.84, 0.92), ss(0.25, 0.75, h));
+    var c = shade * (0.55 + 0.6 * lit) + SUN_COLOR * pow(lit, 6.0) * 0.12 * ss(0.5, 0.8, h);
+    return night_tint(c) * 0.92;
+}
+// How far a place is under the cloud: `unknown` from the fog map, with a
+// billowing edge.
+fn cloud_cover(p: vec2<f32>, unknown: f32) -> f32 {
+    return ss(0.3, 0.8, unknown * (0.75 + cloud_height(p * 1.7) * 0.6));
+}
 fn apply_fog(col: vec3<f32>, pos: vec3<f32>) -> vec3<f32> {
     let d = length(u.eye.xyz - pos);
     var f = clamp((d - u.fog.x) / u.fog.y, 0.0, 1.0);
@@ -417,7 +441,7 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     } else if (unknown < 0.01) {
         col = mix(col, col * (reg.rgb * 0.75 + 0.35), reg.a);
     }
-    col = mix(col, vec3<f32>(0.012, 0.016, 0.03), unknown);
+    col = mix(col, fow_cloud(mp), cloud_cover(mp, unknown));
     return vec4<f32>(apply_fog(col, i.pos), 1.0);
 }
 "#;
@@ -580,7 +604,11 @@ fn fs(i: MOut) -> @location(0) vec4<f32> {
     let paper = vec3<f32>(0.89, 0.8, 0.6) * (0.5 + l * 0.65);
     col = mix(col, mix(dark, paper, ss(0.0, 1.0, reg.r)), mem);
     if (unknown < 0.01) { col = mix(col, col * (reg.rgb * 0.75 + 0.35), reg.a * (1.0 - remembered)); }
-    col = mix(col, vec3<f32>(0.012, 0.016, 0.03), unknown);
+    let mp = vec2<f32>(i.pos.x, -i.pos.y);
+    let cover = cloud_cover(mp, unknown);
+    // Whatever stands under the cloud is hidden, not cloud-coloured.
+    if (cover > 0.5) { discard; }
+    col = mix(col, fow_cloud(mp), cover);
     return vec4<f32>(apply_fog(col, i.pos), i.misc.z);
 }
 "#;
