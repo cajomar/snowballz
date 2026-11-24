@@ -330,7 +330,7 @@ impl App {
             frame_times: [0.0; 60],
             frame_idx: 0,
             frame_count: 0,
-            show_frame_time: false,
+            show_frame_time: std::env::var_os("SNOWBALLZ_FRAMETIME").is_some(),
             selftest: args.selftest.then(selftest::SelfTest::default),
             look_zoomed: false,
             #[cfg(target_arch = "wasm32")]
