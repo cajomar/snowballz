@@ -487,7 +487,7 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
         let a = vec2<f32>(dot(mp, wind) - t * speed, dot(mp, side));
         let streak = vnoise(vec2<f32>(a.x * 0.9, a.y * 6.0)) * vnoise(vec2<f32>(a.x * 0.25, a.y * 1.5) + 3.0);
         let gusts = ss(0.35, 0.75, vnoise(mp * 0.05 - wind * t * 0.08)) + u.map.w;
-        let drift_amt = ss(0.35, 0.65, streak) * min(gusts, 1.6) * fine * (1.0 - water) * (1.0 - cliff) * 0.09;
+        let drift_amt = ss(0.4, 0.7, streak) * min(gusts, 1.6) * fine * (1.0 - water) * (1.0 - cliff) * (0.05 + 0.07 * u.map.w);
         col += vec3<f32>(0.9, 0.95, 1.0) * drift_amt * (0.5 + 0.5 * sh);
     }
     col = night_tint(col);
