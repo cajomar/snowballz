@@ -46,8 +46,12 @@ passing. Tick boxes as things land. Read `AGENTS.md` first.
       over unexplored land, spindrift, swaying trees, fishing holes with
       thin-ice rims and floes, a glittering sea, embers, snowball trails and
       breath in the cold. (`render3d.rs`, `post.rs`, `effects.rs`)
-      Next: models generated locally (TRELLIS.2) to replace the hand-made
-      penguins and props.
+      Soft 16-tap shadows, meltwater in the thaw. Models generated locally
+      (FLUX concept, TRELLIS.2 mesh; `tools/generated.py`, docs/ART.md):
+      crystals, the leopard seal, both power-ups, stumps. Generated firs
+      were too slim and were dropped.
+      Next: the penguins (they are the Snowballz 2 design: ask before
+      replacing them), igloo and buildings stay code-made.
 
 ## Next: the new core (see DESIGN.md section 0)
 
