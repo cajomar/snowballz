@@ -548,10 +548,14 @@ impl GameView {
                 if b.alive && b.done() && b.kind == BuildKind::Campfire && b.lit {
                     let fire = b.center();
                     self.effects.smoke(v3(fire.x, fire.y, map.height_at(fire) + 0.5));
+                    for _ in 0..2 {
+                        self.effects.ember(v3(fire.x, fire.y, map.height_at(fire) + 0.3));
+                    }
                 }
                 if b.alive && b.done() && b.kind == BuildKind::Sauna && b.lit {
                     let fire = b.center() + v2(0.0, 1.05);
                     self.effects.smoke(v3(fire.x, fire.y, map.height_at(fire) + 0.4));
+                    self.effects.ember(v3(fire.x, fire.y, map.height_at(fire) + 0.25));
                 }
             }
         }
@@ -587,6 +591,7 @@ impl GameView {
                         color: [210, 235, 255, 140],
                         gravity: 0.0,
                         grow: 0.0,
+                        glow: false,
                     });
                 }
             }

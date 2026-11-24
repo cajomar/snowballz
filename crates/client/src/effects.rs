@@ -18,6 +18,8 @@ pub struct Particle {
     pub gravity: f32,
     /// Grows over its lifetime (smoke).
     pub grow: f32,
+    /// Shines brighter than white, so it blooms (embers).
+    pub glow: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -131,6 +133,7 @@ impl Effects {
                 color: [250, 252, 255, 255],
                 gravity: 9.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -150,6 +153,7 @@ impl Effects {
                     color: [245, 250, 255, 210],
                     gravity: 0.0,
                     grow: 0.9,
+                    glow: false,
                 };
                 self.add(p);
             }
@@ -187,6 +191,24 @@ impl Effects {
             color: [205, 210, 220, 150],
             gravity: 0.0,
             grow: 0.25,
+            glow: false,
+        };
+        self.add(p);
+    }
+
+    /// A spark flying up from a fire, wandering as it rises and fading out.
+    pub fn ember(&mut self, pos: Vec3) {
+        let hot = self.rng.range(0.0, 1.0);
+        let p = Particle {
+            pos: pos + v3(self.rng.range(-0.15, 0.15), self.rng.range(-0.15, 0.15), 0.0),
+            vel: v3(self.rng.range(-0.25, 0.25), self.rng.range(-0.25, 0.25), self.rng.range(0.9, 1.8)),
+            life: self.rng.range(0.6, 1.4),
+            max: 1.4,
+            size: self.rng.range(0.025, 0.045),
+            color: [255, (140.0 + 90.0 * hot) as u8, (40.0 + 60.0 * hot) as u8, 255],
+            gravity: -0.3,
+            grow: -0.012,
+            glow: true,
         };
         self.add(p);
     }
@@ -205,6 +227,7 @@ impl Effects {
                 color: [215, 235, 248, 255],
                 gravity: 10.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -223,6 +246,7 @@ impl Effects {
                 color: [color[0], color[1], color[2], 255],
                 gravity: 4.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -242,6 +266,7 @@ impl Effects {
                 color: [255, self.rng.range(170.0, 230.0) as u8, 150, 200],
                 gravity: -0.5,
                 grow: 0.6,
+                glow: false,
             };
             self.add(p);
         }
@@ -265,6 +290,7 @@ impl Effects {
                 color: if white { [255, 255, 255, 255] } else { [150, 215, 255, 255] },
                 gravity: 7.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -280,6 +306,7 @@ impl Effects {
                 color: [190, 230, 255, 170],
                 gravity: 0.0,
                 grow: 1.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -299,6 +326,7 @@ impl Effects {
                 color: [255, 215, 115, 255],
                 gravity: -0.4,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -322,6 +350,7 @@ impl Effects {
                 color: [tint[0], tint[1], tint[2], 255],
                 gravity: 5.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -342,6 +371,7 @@ impl Effects {
                 color: if k % 4 == 0 { [208, 220, 238, 255] } else { [252, 253, 255, 255] },
                 gravity: 8.0,
                 grow: 0.0,
+                glow: false,
             };
             self.add(p);
         }
@@ -358,6 +388,7 @@ impl Effects {
                 color: [238, 244, 252, 170],
                 gravity: -0.2,
                 grow: 0.5,
+                glow: false,
             };
             self.add(p);
         }

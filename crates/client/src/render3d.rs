@@ -177,7 +177,8 @@ fn local_diffuse(pos: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
         let wrap = max((dot(n, d / max(dist, 1e-3)) + 0.3) / 1.3, 0.0);
         c += u.light_cols[k].rgb * x * x * wrap;
     }
-    return c;
+    // Many lights together saturate softly instead of adding up to glare.
+    return c / (1.0 + 0.35 * max(c.r, max(c.g, c.b)));
 }
 // In polar night the aurora's slow curtains wash the snow in green and
 // violet light from above.
@@ -702,8 +703,13 @@ fn fs(i: FOut) -> @location(0) vec4<f32> {
         a = ss(wob, wob - 0.35, d) * 0.85;
     } else if (i.kind < 4.5) {
         a = 1.0;
-    } else {
+    } else if (i.kind < 5.5) {
         a = ss(1.0, 0.0, d);
+    } else {
+        // An ember: a hot core brighter than white (so it blooms) in a soft halo.
+        a = ss(1.0, 0.0, d);
+        if (i.color.a * a < 0.01) { discard; }
+        return vec4<f32>(i.color.rgb * (1.5 + 3.0 * ss(0.5, 0.0, d)), i.color.a * a);
     }
     if (i.color.a * a < 0.01) { discard; }
     return vec4<f32>(i.color.rgb, i.color.a * a);
@@ -725,6 +731,7 @@ const FX_FOOT: u8 = 2;
 const FX_SPLAT: u8 = 3;
 const FX_BAR: u8 = 4;
 const FX_BLOB: u8 = 5;
+const FX_GLOW: u8 = 6;
 
 // --- Sky / water --------------------------------------------------------------
 
@@ -1461,15 +1468,15 @@ impl Render3D {
             if ig.color.is_some() {
                 // The door, a step out: the glow spills from the tunnel.
                 let out = (ig.door - ig.center).norm();
-                found.push((ig.door + out * 0.6, ig.z + 0.7, 6.5, window, 1.2, false));
+                found.push((ig.door + out * 0.6, ig.z + 0.7, 6.0, window, 1.0, false));
             }
         }
         for b in scene.buildings.iter().filter(|b| b.ghost.is_none() && b.progress >= 1.0) {
             let (h, reach, col, bright, flick) = match b.kind {
-                BuildKind::Campfire => (0.6, 9.0, fire, 2.6, true),
-                BuildKind::Sauna => (0.5, 6.0, fire, 1.8, true),
-                BuildKind::Spa => (0.6, 5.0, window, 1.2, false),
-                BuildKind::Tower | BuildKind::Catapult | BuildKind::Store | BuildKind::Bunkhouse | BuildKind::Workshop | BuildKind::SkiLodge => (1.4, 4.5, lamp, 1.0, false),
+                BuildKind::Campfire => (0.6, 8.0, fire, 2.0, true),
+                BuildKind::Sauna => (0.5, 5.5, fire, 1.3, true),
+                BuildKind::Spa => (0.6, 4.0, window, 0.7, false),
+                BuildKind::Tower | BuildKind::Catapult | BuildKind::Store | BuildKind::Bunkhouse | BuildKind::Workshop | BuildKind::SkiLodge => (1.4, 3.5, lamp, 0.55, false),
                 _ => continue,
             };
             found.push((b.center, b.z + h, reach, col, bright, flick));
@@ -1925,7 +1932,7 @@ impl Render3D {
         for p in &scene.effects.particles {
             let a = (p.life / p.max).min(1.0);
             let c = [p.color[0], p.color[1], p.color[2], (p.color[3] as f32 * a) as u8];
-            quad(&mut v, gl(v2(p.pos.x, p.pos.y), p.pos.z), right * p.size, up * p.size, c, FX_DISC);
+            quad(&mut v, gl(v2(p.pos.x, p.pos.y), p.pos.z), right * p.size, up * p.size, c, if p.glow { FX_GLOW } else { FX_DISC });
         }
         for f in &self.flakes {
             quad(&mut v, f.pos, right * 0.05, up * 0.05, [255, 255, 255, 200], FX_DISC);
