@@ -258,21 +258,32 @@ const TEXTURES: &str = r#"
 @group(1) @binding(3) var ground_map: texture_2d<f32>;
 @group(1) @binding(4) var lin: sampler;
 
+const POISSON = array<vec2<f32>, 16>(
+    vec2<f32>(-0.94201624, -0.39906216), vec2<f32>(0.94558609, -0.76890725),
+    vec2<f32>(-0.09418410, -0.92938870), vec2<f32>(0.34495938, 0.29387760),
+    vec2<f32>(-0.91588581, 0.45771432), vec2<f32>(-0.81544232, -0.87912464),
+    vec2<f32>(-0.38277543, 0.27676845), vec2<f32>(0.97484398, 0.75648379),
+    vec2<f32>(0.44323325, -0.97511554), vec2<f32>(0.53742981, -0.47373420),
+    vec2<f32>(-0.26496911, -0.41893023), vec2<f32>(0.79197514, 0.19090188),
+    vec2<f32>(-0.24188840, 0.99706507), vec2<f32>(-0.81409955, 0.91437590),
+    vec2<f32>(0.19984126, 0.78641367), vec2<f32>(0.14383161, -0.14100790),
+);
 fn shadow_at(lp: vec4<f32>) -> f32 {
     if (u.sun.w < 0.5) { return 1.0; }
     let p = lp.xyz / lp.w;
     let uv = vec2<f32>(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5);
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || p.z > 1.0) { return 1.0; }
-    // Hardware-filtered PCF over a 3x3 texel area.
+    // 16 hardware-filtered taps on a Poisson disc, turned per pixel so the
+    // pattern never shows: soft, even penumbrae.
     let texel = u.fog.z;
-    let z = p.z - 0.002;
+    let z = p.z - 0.0015;
+    let ang = hash(lp.xy * 913.7 + lp.zw * 37.1) * 6.2831853;
+    let rot = mat2x2<f32>(vec2<f32>(cos(ang), sin(ang)), vec2<f32>(-sin(ang), cos(ang)));
     var s = 0.0;
-    for (var i = -1; i <= 1; i++) {
-        for (var j = -1; j <= 1; j++) {
-            s += textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(f32(i), f32(j)) * texel, z);
-        }
+    for (var k = 0; k < 16; k++) {
+        s += textureSampleCompareLevel(shadow_map, shadow_samp, uv + rot * POISSON[k] * texel * 2.2, z);
     }
-    return s / 9.0;
+    return s / 16.0;
 }
 fn tint_at(mp: vec2<f32>) -> vec4<f32> {
     return textureSampleLevel(tint_map, lin, mp / u.map.xy, 0.0);
