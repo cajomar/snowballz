@@ -34,7 +34,7 @@ pub fn yaw_for(facing: f32) -> f32 {
 // A lower sun than straight overhead: long shadows give shape.
 pub const SUN: Vec3 = Vec3 { x: -0.55, y: -0.6, z: 0.5 };
 const FOV: f32 = 0.70;
-const SHADOW_SIZE: u32 = 2048;
+const SHADOW_SIZE: u32 = 4096;
 
 /// GL-style clip space (z from -w to w) to wgpu's (0 to w).
 const CLIP_FIX: Mat4 = Mat4([1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.5, 0., 0., 0., 0.5, 1.]);
