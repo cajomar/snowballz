@@ -211,6 +211,10 @@ pub struct Scene<'a> {
     /// 0..1, eased: how dark (polar night) and how stormy (blizzard) it is.
     pub night: f32,
     pub storm: f32,
+    /// 0..1, eased: how far into midsummer (golden light) and the thaw
+    /// (soft, damp light) it is.
+    pub summer: f32,
+    pub thaw: f32,
     /// Falling snow relative to normal (none in the thaw).
     pub snowfall: f32,
     /// Screen shake as a camera offset, in fractions of the viewport height.

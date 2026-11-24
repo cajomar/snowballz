@@ -93,6 +93,9 @@ pub struct WorldUniforms {
     pub lights: [[f32; 4]; MAX_LIGHTS],
     /// Their colour times brightness.
     pub light_cols: [[f32; 4]; MAX_LIGHTS],
+    /// The sun's colour and the sky's tint, by season.
+    pub sun_color: [f32; 4],
+    pub sky_tint: [f32; 4],
 }
 
 /// The most point lights lighting one frame: the nearest to the camera win.
@@ -117,6 +120,8 @@ struct World {
     tint: vec4<f32>,
     lights: array<vec4<f32>, 24>,
     light_cols: array<vec4<f32>, 24>,
+    sun_color: vec4<f32>,
+    sky_tint: vec4<f32>,
 }
 @group(0) @binding(0) var<uniform> u: World;
 
@@ -155,10 +160,8 @@ fn vnoise(p: vec2<f32>) -> f32 {
 // Light from the sky: blue from above, the snow's bright bounce from below.
 fn sky_light(n: vec3<f32>) -> vec3<f32> {
     let up = n.z * 0.5 + 0.5;
-    return mix(vec3<f32>(0.66, 0.68, 0.74), vec3<f32>(0.46, 0.60, 0.88), up);
+    return mix(vec3<f32>(0.66, 0.68, 0.74), vec3<f32>(0.46, 0.60, 0.88), up) * u.sky_tint.rgb;
 }
-// The sun: warm, and brighter than white, so sunlit snow glows a little.
-const SUN_COLOR: vec3<f32> = vec3<f32>(1.0, 0.92, 0.80);
 // u.map.z: polar night (0..1) darkens and blues the sun and sky's light
 // (not the fires', which is added after).
 fn night_tint(col: vec3<f32>) -> vec3<f32> {
@@ -223,7 +226,7 @@ fn fow_cloud(p: vec2<f32>) -> vec3<f32> {
     let lit = max(dot(n, normalize(u.sun.xyz)), 0.0);
     // Deep in a billow it is bluer and darker; tops catch the sun.
     let shade = mix(vec3<f32>(0.46, 0.52, 0.66), vec3<f32>(0.80, 0.84, 0.92), ss(0.25, 0.75, h));
-    var c = shade * (0.55 + 0.6 * lit) + SUN_COLOR * pow(lit, 6.0) * 0.12 * ss(0.5, 0.8, h);
+    var c = shade * (0.55 + 0.6 * lit) + u.sun_color.rgb * pow(lit, 6.0) * 0.12 * ss(0.5, 0.8, h);
     return night_tint(c) * 0.92 + c * aurora_light(vec3<f32>(p.x, -p.y, 0.0)) * 0.8;
 }
 // How far a place is under the cloud: `unknown` from the fog map, with a
@@ -433,14 +436,14 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     let diff = max(dot(n, L), 0.0);
     // Shadowed snow picks up the blue of the sky; sunlit snow is a little
     // brighter than white and glows.
-    var col = albedo * (sky_light(n) * 0.55 + SUN_COLOR * 0.95 * diff * sh);
+    var col = albedo * (sky_light(n) * 0.55 + u.sun_color.rgb * 0.95 * diff * sh);
     let V = normalize(u.eye.xyz - i.pos);
     let H = normalize(L + V);
     let nh = max(dot(n, H), 0.0);
     let fres = pow(1.0 - max(dot(n, V), 0.0), 4.0);
     // Snow's soft sheen toward the sun, and light scattered through it in shade.
     let snowy = (1.0 - ice) * (1.0 - water) * (1.0 - cliff);
-    col += snowy * (pow(nh, 20.0) * 0.12 * sh * SUN_COLOR + (1.0 - sh) * vec3<f32>(0.0, 0.03, 0.08));
+    col += snowy * (pow(nh, 20.0) * 0.12 * sh * u.sun_color.rgb + (1.0 - sh) * vec3<f32>(0.0, 0.03, 0.08));
     col += ice * (pow(nh, 90.0) * 1.8 * sh + fres * vec3<f32>(0.55, 0.7, 0.95) * 0.4 + (1.0 - frost) * 0.04);
     col += water * (pow(nh, 140.0) * 2.5 * sh + (0.06 + fres) * sky_light(reflect(-V, n)) * 0.55);
     // Sparkles: tiny points that twinkle as the camera moves.
@@ -624,11 +627,11 @@ fn fs(i: MOut) -> @location(0) vec4<f32> {
     // throws a bright fill up from below.
     let wrap = max((dot(n, L) + 0.35) / 1.35, 0.0);
     let bounce = vec3<f32>(0.92, 0.95, 1.0) * max(-n.z, 0.0) * 0.35;
-    var col = albedo * (sky_light(n) * 0.5 + bounce + SUN_COLOR * (0.45 * wrap + 0.45 * diff) * sh);
+    var col = albedo * (sky_light(n) * 0.5 + bounce + u.sun_color.rgb * (0.45 * wrap + 0.45 * diff) * sh);
     let H = normalize(L + V);
     let fres = pow(1.0 - max(dot(n, V), 0.0), 5.0);
     let spec = pow(max(dot(n, H), 0.0), select(24.0, 90.0, glossy)) * select(surf.w, 1.6, glossy) * (0.6 + fres);
-    col += spec * sh * SUN_COLOR;
+    col += spec * sh * u.sun_color.rgb;
     let rim = pow(1.0 - max(dot(n, V), 0.0), 2.5);
     col += rim * mix(vec3<f32>(0.45, 0.6, 0.85) * 0.3, i.team.rgb * 1.4, min(i.misc.w, 1.0));
     col = night_tint(col);
@@ -919,6 +922,8 @@ pub struct Render3D {
     /// Weather from the last scene (see [`Scene`]).
     night: f32,
     storm: f32,
+    summer: f32,
+    thaw: f32,
     /// This frame's point lights (see `gather_lights`) and how many.
     lights: ([[f32; 4]; MAX_LIGHTS], [[f32; 4]; MAX_LIGHTS], usize),
     snowfall: f32,
@@ -1192,6 +1197,8 @@ impl Render3D {
             terrain_seen: 0,
             night: 0.0,
             storm: 0.0,
+            summer: 0.0,
+            thaw: 0.0,
             lights: ([[0.0; 4]; MAX_LIGHTS], [[0.0; 4]; MAX_LIGHTS], 0),
             snowfall: 1.0,
             flakes: Vec::new(),
@@ -1452,6 +1459,21 @@ impl Render3D {
             tint: [1.0, if mode < 0.5 { self.lights.2 as f32 } else { 0.0 }, 0.0, 0.0],
             lights: self.lights.0,
             light_cols: self.lights.1,
+            sun_color: {
+                // Deep winter's pale warm sun, midsummer's low golden one, the
+                // thaw's soft damp light.
+                let winter = [1.0, 0.92, 0.80];
+                let summer = [1.1, 0.88, 0.64];
+                let thaw = [0.98, 0.95, 0.9];
+                let c: Vec<f32> = (0..3).map(|i| winter[i] + (summer[i] - winter[i]) * self.summer + (thaw[i] - winter[i]) * self.thaw).collect();
+                [c[0], c[1], c[2], 0.0]
+            },
+            sky_tint: {
+                let summer = [1.04, 1.0, 0.93];
+                let thaw = [0.97, 1.0, 0.98];
+                let c: Vec<f32> = (0..3).map(|i| 1.0 + (summer[i] - 1.0) * self.summer + (thaw[i] - 1.0) * self.thaw).collect();
+                [c[0], c[1], c[2], 0.0]
+            },
         }
     }
 
@@ -2065,6 +2087,8 @@ impl WorldRenderer for Render3D {
         self.update_terrain(ctx, scene);
         self.night = scene.night;
         self.storm = scene.storm;
+        self.summer = scene.summer;
+        self.thaw = scene.thaw;
         self.snowfall = scene.snowfall;
         self.gather_lights(scene);
         self.update_snow(scene.dt, scene.time);

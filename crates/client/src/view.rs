@@ -64,6 +64,8 @@ pub struct GameView {
     /// Eased weather for drawing (see [`Scene`]).
     night: f32,
     storm: f32,
+    summer: f32,
+    thaw: f32,
     snowfall: f32,
 }
 
@@ -111,6 +113,8 @@ impl GameView {
             started: false,
             night: 0.0,
             storm: 0.0,
+            summer: 0.0,
+            thaw: 0.0,
             snowfall: 1.0,
         }
     }
@@ -623,6 +627,10 @@ impl GameView {
         let snowfall = (wt.season.snowfall() + storm * 1.0).min(3.0);
         let k = (dt * 0.4).min(1.0);
         self.night += (night - self.night) * k;
+        let summer = if wt.season == sim::game::Season::Midsummer { 1.0 } else { 0.0 };
+        let thaw = if wt.season == sim::game::Season::Thaw { 1.0 } else { 0.0 };
+        self.summer += (summer - self.summer) * k;
+        self.thaw += (thaw - self.thaw) * k;
         self.storm += (storm - self.storm) * (dt * 0.8).min(1.0);
         self.snowfall += (snowfall - self.snowfall) * k;
     }
@@ -819,6 +827,8 @@ impl GameView {
             terrain_version: w.terrain_version,
             night: self.night,
             storm: self.storm,
+            summer: self.summer,
+            thaw: self.thaw,
             snowfall: self.snowfall,
             shake: self.juice.shake_offset(),
         }
