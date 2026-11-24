@@ -32,7 +32,7 @@ pub fn yaw_for(facing: f32) -> f32 {
 }
 
 // A lower sun than straight overhead: long shadows give shape.
-pub const SUN: Vec3 = Vec3 { x: -0.52, y: -0.56, z: 0.62 };
+pub const SUN: Vec3 = Vec3 { x: -0.55, y: -0.6, z: 0.5 };
 const FOV: f32 = 0.70;
 const SHADOW_SIZE: u32 = 2048;
 
@@ -216,6 +216,13 @@ fn fow_cloud(p: vec2<f32>) -> vec3<f32> {
 fn cloud_cover(p: vec2<f32>, unknown: f32) -> f32 {
     return ss(0.3, 0.8, unknown * (0.75 + cloud_height(p * 1.7) * 0.6));
 }
+// Shadows of high clouds sliding across the land on a sunny day.
+fn cloud_shadow(pos: vec3<f32>) -> f32 {
+    let t = u.eye.w;
+    let q = vec2<f32>(pos.x, -pos.y) * 0.035 + vec2<f32>(t * 0.006, t * 0.0025);
+    let c = vnoise(q) * 0.65 + vnoise(q * 2.3 + 5.0) * 0.35;
+    return 1.0 - 0.38 * ss(0.5, 0.72, c) * (1.0 - u.map.z) * (1.0 - u.map.w);
+}
 fn apply_fog(col: vec3<f32>, pos: vec3<f32>) -> vec3<f32> {
     let d = length(u.eye.xyz - pos);
     var f = clamp((d - u.fog.x) / u.fog.y, 0.0, 1.0);
@@ -396,7 +403,7 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     albedo = mix(albedo, vec3<f32>(0.95, 0.98, 1.0), foam * (0.55 + 0.35 * sin(t * 1.6 + mp.x * 2.0 + mp.y * 1.3)) * (1.0 - cliff));
     albedo = mix(albedo, waterc, water);
     n = normalize(mix(n, normalize(n + vec3<f32>(rip1 - 0.5, rip2 - 0.5, 0.0) * 0.5), water));
-    let sh = shadow_at(i.lpos);
+    let sh = shadow_at(i.lpos) * cloud_shadow(i.pos);
     let L = normalize(u.sun.xyz);
     let diff = max(dot(n, L), 0.0);
     // Shadowed snow picks up the blue of the sky; sunlit snow is a little
@@ -575,7 +582,7 @@ fn fs(i: MOut) -> @location(0) vec4<f32> {
     let lum = dot(albedo, vec3<f32>(0.3, 0.55, 0.15));
     albedo = mix(albedo, vec3<f32>(0.6, 0.8, 1.0) * (0.45 + lum), i.team.a * 0.75);
     let L = normalize(u.sun.xyz);
-    let sh = shadow_at(i.lpos);
+    let sh = shadow_at(i.lpos) * cloud_shadow(i.pos);
     let diff = max(dot(n, L), 0.0);
     // Wrap lighting keeps the dark side of penguins readable; the snow
     // throws a bright fill up from below.
