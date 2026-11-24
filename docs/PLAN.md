@@ -39,6 +39,16 @@ passing. Tick boxes as things land. Read `AGENTS.md` first.
       Left for later: touch controls, a Rust-side `wss` story without a
       proxy.
 
+- [x] **Look** — a wgpu renderer with sun shadows (4096 map), AO, bloom,
+      tone mapping and tilt-shift; firelight (up to 24 point lights from
+      igloo doors, fires, saunas and lanterns), a deep-blue polar night with
+      aurora, each season's own sun colour, cloud shadows, drifting cloud
+      over unexplored land, spindrift, swaying trees, fishing holes with
+      thin-ice rims and floes, a glittering sea, embers, snowball trails and
+      breath in the cold. (`render3d.rs`, `post.rs`, `effects.rs`)
+      Next: models generated locally (TRELLIS.2) to replace the hand-made
+      penguins and props.
+
 ## Next: the new core (see DESIGN.md section 0)
 
 The prototype's core loop is the 2007 one. These milestones rebuild it
