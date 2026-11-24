@@ -2,8 +2,8 @@
 
 Run from the repo root (requires Blender 4+):
 
-    blender -b ../snowballz2/datasrc/penguin.blend --python tools/export_models.py -- penguin
-    blender -b ../snowballz2/datasrc/tree.blend    --python tools/export_models.py -- tree
+    blender -b art/source/penguin.blend --python tools/export_models.py -- penguin
+    blender -b art/source/tree.blend    --python tools/export_models.py -- tree
 
 Any model can replace one of the built-in (meshgen) ones: export it under
 that model's file name and the game picks it up (see `prop` below).

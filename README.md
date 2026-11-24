@@ -567,7 +567,7 @@ them.
 $ cargo run -p sim --release --example make_maps
 
 # Snowballz 2 Blender files -> baked vertex-animation models
-$ blender -b ../snowballz2/datasrc/penguin.blend --python tools/export_models.py -- penguin
+$ blender -b art/source/penguin.blend --python tools/export_models.py -- penguin
 
 # Signed-distance-field font atlas
 $ tools/bake_font.py assets/fonts/Mali-Regular.ttf assets/fonts/ui

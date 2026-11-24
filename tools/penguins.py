@@ -6,7 +6,7 @@ bones so it moves with the animations.
     blender -b --python tools/penguins.py               # every kind
     blender -b --python tools/penguins.py -- skier      # just one
 
-Reads ../snowballz2/datasrc/penguin.blend (never changes it) and writes
+Reads art/source/penguin.blend (never changes it) and writes
 art/units/<kind>.blend, an editable copy with the outfit on, and
 assets/models/unit-<kind>.sbm, which the game draws.
 
@@ -26,7 +26,7 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import export_models as em  # noqa: E402
 
-SOURCE = "../snowballz2/datasrc/penguin.blend"
+SOURCE = "art/source/penguin.blend"
 ART = "art/units"
 S = em.PENGUIN_SCALE
 TAU = math.tau

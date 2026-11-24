@@ -85,7 +85,7 @@ building half built.
 
 ## The penguins
 
-Every kind is the Snowballz 2 penguin (`../snowballz2/datasrc/penguin.blend`:
+Every kind is the Snowballz 2 penguin (`art/source/penguin.blend`:
 its body, rig and animations), slimmed down and dressed in its own outfit
 and gear by `tools/penguins.py`:
 
