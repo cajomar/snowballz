@@ -397,11 +397,21 @@ fn fs(i: TOut) -> @location(0) vec4<f32> {
     let deep = mix(vec3<f32>(0.14, 0.42, 0.56), vec3<f32>(0.03, 0.13, 0.27), ss(0.5, 0.9, wm));
     let sun_mp = normalize(vec2<f32>(u.sun.x, -u.sun.y) + 1e-4);
     let wall_shade = max(dot(normalize(wg + 1e-5), -sun_mp), 0.0) * ss(0.68, 0.5, wm);
-    let waterc = (deep + (rip1 * 0.6 + rip2 * 0.4 - 0.5) * 0.06) * (1.0 - wall_shade * 0.6);
+    var waterc = (deep + (rip1 * 0.6 + rip2 * 0.4 - 0.5) * 0.06) * (1.0 - wall_shade * 0.6);
+    // A shelf of thin, clear ice round the rim, cracked into plates, and
+    // little floes drifting on the dark water further in.
+    let shelf = ss(0.47, 0.53, wm) * ss(0.66, 0.56, wm + (vnoise(mp * 3.0) - 0.5) * 0.08);
+    let plates = ss(0.04, 0.0, cracks(mp * 2.2 + 7.0));
+    waterc = mix(waterc, vec3<f32>(0.42, 0.72, 0.84) * (0.9 + 0.2 * vnoise(mp * 5.0)) + plates * 0.18, shelf * 0.75);
+    let fq = mp * 3.4 + vec2<f32>(t * 0.08, t * 0.03);
+    let floe = ss(0.76, 0.79, vnoise(fq) * 0.6 + vnoise(fq * 2.7 + 3.0) * 0.4) * ss(0.62, 0.75, wm);
+    waterc = mix(waterc, vec3<f32>(0.86, 0.93, 0.98), floe * fine);
     let wall = mix(vec3<f32>(0.35, 0.6, 0.78), vec3<f32>(0.75, 0.9, 1.0), clamp(i.pos.z + 0.6, 0.0, 1.0));
     var albedo = mix(mix(snow, icec, ice), wall, cliff);
     albedo = mix(albedo, vec3<f32>(0.95, 0.98, 1.0), foam * (0.55 + 0.35 * sin(t * 1.6 + mp.x * 2.0 + mp.y * 1.3)) * (1.0 - cliff));
     albedo = mix(albedo, waterc, water);
+    // A crisp lip of packed snow where the ground breaks off into the water.
+    albedo = mix(albedo, vec3<f32>(1.04, 1.06, 1.08), ss(0.05, 0.0, abs(wm - 0.47)) * 0.7 * (1.0 - cliff));
     n = normalize(mix(n, normalize(n + vec3<f32>(rip1 - 0.5, rip2 - 0.5, 0.0) * 0.5), water));
     let sh = shadow_at(i.lpos) * cloud_shadow(i.pos);
     let L = normalize(u.sun.xyz);
