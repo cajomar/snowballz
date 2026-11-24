@@ -196,6 +196,22 @@ impl Effects {
         self.add(p);
     }
 
+    /// A puff of powder left hanging behind a snowball in flight.
+    pub fn trail(&mut self, pos: Vec3, size: f32) {
+        let p = Particle {
+            pos: pos + v3(self.rng.range(-0.02, 0.02), self.rng.range(-0.02, 0.02), self.rng.range(-0.02, 0.02)),
+            vel: v3(0.0, 0.0, 0.05),
+            life: 0.28,
+            max: 0.28,
+            size: 0.05 * size,
+            color: [240, 246, 255, 120],
+            gravity: 0.0,
+            grow: 0.12 * size,
+            glow: false,
+        };
+        self.add(p);
+    }
+
     /// A spark flying up from a fire, wandering as it rises and fading out.
     pub fn ember(&mut self, pos: Vec3) {
         let hot = self.rng.range(0.0, 1.0);

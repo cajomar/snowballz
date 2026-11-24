@@ -559,6 +559,15 @@ impl GameView {
                 }
             }
         }
+        // A faint streak of powder behind every snowball in flight.
+        {
+            let t = self.clock as f32;
+            for f in &self.flying {
+                if let Some((p, z)) = WorldView::snowball_at(f, t) {
+                    self.effects.trail(v3(p.x, p.y, z), if f.big { 2.5 } else { 1.0 });
+                }
+            }
+        }
         // Frost sparkles: penguins out in the cold shimmer faintly.
         self.frost_t += dt;
         if self.frost_t > 0.3 {
